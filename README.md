@@ -10,7 +10,7 @@ Inspired by [omp-flake](https://github.com/clairesrc/omp-flake).
 ## Try it
 
 ```console
-$ nix run github:apphousero/oh-my-pi-flake -- --version
+$ nix run github:rikkichy/oh-my-pi-flake -- --version
 ```
 
 ## Flake input
@@ -20,7 +20,7 @@ $ nix run github:apphousero/oh-my-pi-flake -- --version
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     omp = {
-      url = "github:apphousero/oh-my-pi-flake";
+      url = "github:rikkichy/oh-my-pi-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -101,7 +101,8 @@ $ nix run .#update           # latest release
 $ nix run .#update -- 17.2.9 # a specific one
 ```
 
-A scheduled workflow runs it daily, builds the result on both Linux systems, and only then opens a PR.
+A scheduled workflow checks for the latest stable release hourly, builds and smoke-tests it on both Linux
+systems, and commits the verified version and hashes directly to `master`. It also supports manual runs.
 
 ## Checks
 
