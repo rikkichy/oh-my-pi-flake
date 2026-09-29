@@ -2,7 +2,7 @@ name: update
 
 on:
   schedule:
-    - cron: "0 6 * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       version:
@@ -12,6 +12,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: update
+  cancel-in-progress: false
 
 jobs:
   resolve:
@@ -47,15 +51,16 @@ jobs:
       version: ${{ needs.resolve.outputs.version }}
       digest: ${{ needs.resolve.outputs.digest }}
 
-  pull-request:
+  publish:
     needs: [resolve, verify]
     if: needs.resolve.outputs.changed == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: master
       - uses: DeterminateSystems/nix-installer-action@v22
 
       - name: rewrite package.nix
@@ -70,18 +75,15 @@ jobs:
             exit 1
           fi
 
-      - uses: peter-evans/create-pull-request@v8
-        with:
-          branch: update/oh-my-pi
-          add-paths: package.nix
-          title: "oh-my-pi: ${{ needs.resolve.outputs.version }}"
-          commit-message: "oh-my-pi: ${{ needs.resolve.outputs.version }}"
-          delete-branch: true
-          body: |
-            Hashes taken from the upstream `SHA256SUMS.txt` for
-            [v${{ needs.resolve.outputs.version }}](https://github.com/can1357/oh-my-pi/releases/tag/v${{ needs.resolve.outputs.version }}).
-
-            The `check` matrix already ran against this exact content on `x86_64-linux` and `aarch64-linux` in
-            [run ${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
-            Pull requests opened with `GITHUB_TOKEN` cannot trigger workflows, so this PR will
-            show no checks of its own.
+      - name: commit release
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+        run: |
+          if git diff --quiet -- package.nix; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.nix
+          git commit -m "oh-my-pi: $VERSION"
+          git push origin HEAD:master
